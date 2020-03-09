@@ -1,0 +1,216 @@
+---
+title: "DATA 607 Project 2 Part 2"
+author: "Subhalaxmi Rout"
+date: "03/08/2020"
+output:
+  html_document:
+    code_folding: show
+    fig_height: 4
+    fig_width: 8
+    highlight: espresso
+    theme: flatly
+    toc: yes
+    toc_float: yes
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# UNICEF dataset on Under 5 Mortality
+
+Discussion thread created by : Samuel Bellows
+
+## 1. Introduction 
+
+UNICEF dataset that gives the under 5 mortality for many countries across the years 1950-2015. The problem is that the year variable is spread out into 65 different columns, 1 for each year, that need to be gathered into 1 column. In order to make this dataset tiny we would gather the year columns into one column until we had a 3 column dataset of Country name, Year, and Mortality.
+
+## 2. Load library
+
+```{r}
+#install.packages("dplyr")
+#install.packages("tidyr")
+#install.packages("ggplot2")
+#install.packages("DT")
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(DT)
+```
+
+## 3. Data load and cleaning
+
+Data is stored in the **Github** and loaded data from Github to Rstudio using **read.csv()** method. 
+
+
+```{r}
+# read csv file data in a variable using  read.csv() 
+data <- read.csv('https://raw.githubusercontent.com/SubhalaxmiRout002/Data-607-Project-2-Dataset-1/master/unicef-u5mr.csv', header = TRUE, stringsAsFactors = F)
+
+# convert data to data frame
+data <- data.frame(data)
+
+# display data using datatable
+datatable(data,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+```
+
+### 3.1 Gather year from 1950 to 2015
+
+This dataset year has given from 1950 to 2015. Each year mentioned as a column. Using **tidyr** convert these columns to `Year` column.
+
+```{r}
+# using gather() convert column to row
+data <- data %>% gather(Year, Mortality, U5MR.1950:U5MR.2015, na.rm = TRUE)
+
+# Uremove "U5MR" from the name
+data$Year  <- sub('U5MR.','',data$Year)
+
+# arrange Mortality by desc order
+data <- data %>% arrange(desc(Mortality))
+
+# display data using datatable
+datatable(data,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+
+```
+
+## 4. Analysis
+
+Mortality based on year:  
+
++ Year: 1950, Highest/lowest mortality 
++ Year: 2015 Highest/lowest mortality
+
+### 4.1 Highest mortality in the year 1950
+
+```{r}
+# apply filter on year = 1950 
+data1 <- data %>% filter(Year == "1950")
+
+# display data using datatable
+datatable(data1,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+```
+
+### 4.2  Highest to lowest mortality in 1950
+
+```{r, fig.width= 7, fig.height=7}
+data1 <- data.frame(data1)
+
+ggplot(data = data1, mapping = aes(x = CountryName, y = Mortality)) + 
+  geom_bar(aes(reorder(CountryName,Mortality),Mortality),stat = "identity",fill = "steelblue") +
+  coord_flip() + xlab("Country") + ylab("#Mortality") +
+  ggtitle("Highest to lowest mortality in 1950") +
+  theme(plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white", color = NA)) +
+  geom_text(aes( y = Mortality,label=Mortality), hjust = -0.20, color="black", size=3.5)
+```
+
+
+### 4.3 Highest mortality in 2015
+
+```{r}
+# apply filter on year = 2015 
+data2 <- data %>% filter(Year == "2015")
+
+# arrange Mortality by desc
+data2 <- data2 %>% arrange(desc(Mortality))
+
+# display data using datatable
+datatable(data2,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+```
+
+### 4.4 Top 10 countries with mortality in 2015
+
+```{r}
+data3 <- data.frame(head(data2, 10))
+
+ggplot(data = data3, mapping = aes(x = CountryName, y = Mortality)) + 
+  geom_bar(aes(reorder(CountryName,Mortality),Mortality),stat = "identity",fill = "steelblue") +
+  coord_flip() + xlab("Country") + ylab("#Mortality") +
+  ggtitle("Top 10 countries with mortality in 2015") +
+  theme(plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white", color = NA)) +
+  geom_text(aes( y = Mortality,label=Mortality), hjust=-0.20, color="black", size=3.5)
+```
+
+### 4.5 Bottom 10 countries with mortality  in 2015
+
+```{r}
+
+# last 10 row data stored in the variable
+data4 <- data.frame(tail(data2, 10))
+
+ggplot(data = data4, mapping = aes(x = CountryName, y = Mortality)) + 
+  geom_bar(aes(reorder(CountryName,Mortality),Mortality),stat = "identity",fill = "steelblue") +
+  coord_flip() + xlab("Country") + ylab("#Mortality") +
+  ggtitle("Bottom 10 countries with mortality  in 2015") +
+  theme(plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white", color = NA)) +
+  geom_text(aes( y = Mortality,label=Mortality), hjust=-0.20,color="black", size=3.5)
+
+
+```
+
+### 4.6 Average mortality of the 10 developed countries
+
+```{r}
+# stored data in data frame
+data5 <- data.frame(data)
+
+# calculate mean and group by using country
+data5 <- data5 %>%  group_by(CountryName) %>%  summarise(round(mean(Mortality),2))
+data5 <- mutate(data5,Avg_mortality = `round(mean(Mortality), 2)`)
+
+# select country name and average mortality
+data5 <- select(data5, CountryName, Avg_mortality)
+
+#apply filter on country
+data5 <- data5 %>% filter(grepl('United States of America|Japan|Norway|Switzerland|Australia|Ireland|Germany|Iceland|Singapore|Sweden|Netherlands' , CountryName  )) %>% arrange(desc(Avg_mortality))
+
+
+# 10 developed countries average mortality
+ggplot(data = data5, mapping = aes(x = CountryName, y = Avg_mortality)) + 
+  geom_bar(aes(reorder(CountryName,Avg_mortality),Avg_mortality),stat = "identity",fill = "steelblue") +
+   xlab("Country") + ylab("Average Mortality") +
+  ggtitle("Developed countries  Average Mortality") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_text(aes( y = Avg_mortality,label=Avg_mortality), vjust = - 0.2, color="black", size=3.5) +
+  theme(axis.text.x=element_text(angle=30,hjust=1),panel.background = element_rect(fill = "white", color = NA))
+```
+
+### 4.7  Mortality of United States from 1950 to 2015
+
+```{r}
+# store data in data frame
+data6 <- data.frame(data)
+
+# apply filter on Contry name = US
+data6 <- data6 %>% filter(CountryName == "United States of America")
+
+
+ggplot(data6,aes(x = CountryName, y = Mortality)) + 
+  geom_boxplot() +  xlab("Country") +
+
+stat_summary(fun=mean, colour="darkred", geom="point", size=3,show.legend = FALSE) +
+stat_summary(fun=mean, colour="red", geom="text", show.legend = FALSE, 
+               vjust=-0.7, aes( label=round(..y.., digits=1))) 
+
+# display mean, median, upper hinge, lower hindge
+summary(data6$Mortality)
+ 
+  
+```
+
+
+
+## 5. Conclusion
+
+ The plot 4.2, plot 4.4, and plot 4.5 shows mortality goes down year over year.
+ 
+ + In the year 1950, the African continent countries have more mortality. 
+ + In the year 2015, developed countries have fewer mortality as compared to undeveloped or developing countries. 
+ + The average mortality for 10 developed countries: Sweden has the least average and Singapore has the highest average.
+ + The boxplot (plot 4.7) shows the mortality of the United States from 1950 to 2015. 
+ + The mortality of the United States has gone down year over year.
+
+
+
+

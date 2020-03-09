@@ -1,0 +1,242 @@
+---
+title: "DATA 607 Project 2 Part 3"
+author: "Subhalaxmi Rout"
+date: "03/08/2020"
+output:
+  html_document:
+    code_folding: show
+    fig_height: 4
+    fig_width: 8
+    highlight: espresso
+    theme: flatly
+    toc: yes
+    toc_float: yes
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+# State Marriage Rates
+
+Discussion thread created by : Gabriel Abreu 
+
+## 1. Introduction
+These gives state marriage rates breaking down the data into regions and years. We can group the data by census region or census division. Then organize the rates according to year, changing it from wide data to long data. 
+
+URL: [Dataset link](https://data.world/siyeh/state-marriage-rate)
+
+## 2.Load library
+
+```{r}
+#install.packages("dplyr")
+#install.packages("tidyr")
+#install.packages("ggplot2")
+#install.packages("DT")
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(DT)
+```
+
+## 3. Data load and cleaning
+
+Data is stored in the **Github** and loaded data from Github to Rstudio using **read.csv()** method. 
+
+```{r}
+# read csv file data in a variable using  read.csv 
+data <- read.csv('https://raw.githubusercontent.com/SubhalaxmiRout002/Data-607-Project-2-Dataset-1/master/marriage_rates_project.csv', header = TRUE, stringsAsFactors = F)
+
+# convert data to data frame
+data <- data.frame(data)
+
+# display data using datatable
+datatable(data,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+
+```
+
+### 3.1 Gather year from 1990 to 2016
+
+This dataset year has given from 1990 to 2016. Each year mentioned as a column. Using **tidyr** convert these columns to `Year` column.
+
+```{r}
+# using gather() convert column to row
+data <- data %>% gather(Year, Marriage_Rate, X2016:X1990, na.rm = TRUE)
+
+# remove "X" from the year
+data$Year  <- sub('X','',data$Year)
+
+# arrange Marriage_Rate by desc order
+data <- data %>% arrange(desc(Marriage_Rate))  
+
+# round Marriage Rate till 2 decimal
+data$Marriage_Rate  <- round(data$Marriage_Rate,2) 
+
+# display data using datatable
+datatable(data,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+
+```
+
+### 3.2 Rename column name
+
+```{r}
+# rename census_divison and census_region i.e "Division" and "Region" 
+data <- data %>% rename( Division = census_division,Region = census_region)
+
+# replace null value to NA
+data$Region[data$Region == ""] <- NA
+
+# display data using datatable
+datatable(data,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+```
+
+### 3.3 Region wise Marriage rate
+
+Apply group by on Region and plot the graph using  region wise marriage rate.
+
+```{r}
+#load data in a data frame
+data1 <- data.frame(data)
+
+
+#apply groupby on Region
+data1 <- data1 %>% group_by(Region, Year) %>% select(Region,Year, Marriage_Rate)
+
+#  Boxplot to analyse marriage rate
+ggplot(data1,aes(x = Region, y = Marriage_Rate)) + 
+  geom_boxplot(outlier.shape = NA) + 
+scale_y_continuous(limits = quantile(data1$Marriage_Rate, c(0.1, 0.9))) +
+stat_summary(fun=mean, colour="darkred", geom="point", size=3,show.legend = FALSE) +
+stat_summary(fun=mean, colour="blue", geom="text", show.legend = FALSE, 
+               vjust=-0.7, aes( label=round(..y.., digits=1))) +
+  xlab("Region") + ylab("Marriage Rate") +
+theme(axis.text.x=element_text(angle=30,hjust=1),plot.title = element_text(hjust = 0.5)) +
+  ggtitle("Rate of Marriage by Region")
+
+# get all unique Division
+Regions = unique(data1$Region)
+Regions
+
+# summary for all Region
+data4 <- data1 %>% 
+  group_by(Region) %>% 
+  summarize(Min. = min(Marriage_Rate),
+            "1st Qu." = round(quantile(Marriage_Rate, 0.25),2),
+            Median = round(median(Marriage_Rate),2),
+            Mean = round(mean(Marriage_Rate),2),
+            "3rd Qu." = round(quantile(Marriage_Rate, 0.75),2),
+            Max. = max(Marriage_Rate)
+            )
+# display summary using datatable
+datatable(data4,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+```
+
+### 3.4 Division wise Marriage rate
+
+Apply group by on Division and plot the graph using  region wise marriage rate.
+
+```{r}
+#load data in a data frame
+data2 <- data.frame(data)
+
+
+#apply groupby on Region
+data2 <- data2 %>% group_by(Division, Year) %>% select(Division,Year, Marriage_Rate)
+
+# replace null value to NA
+data$Division[data$Division == ""] <- NA
+
+# plot line chart to analyse trend
+ggplot(data2,aes(x = Division, y = Marriage_Rate)) + 
+  geom_boxplot(outlier.shape = NA) + 
+  scale_y_continuous(limits = quantile(data2$Marriage_Rate, c(0.1, 0.9))) +
+stat_summary(fun=mean, colour="darkred", geom="point", size=3,show.legend = FALSE) +
+stat_summary(fun=mean, colour="blue", geom="text", show.legend = FALSE, 
+               vjust=-0.7, aes( label=round(..y.., digits=1))) +
+xlab("Division") + ylab("Marriage Rate") +
+theme(axis.text.x=element_text(angle=30,hjust=1),plot.title = element_text(hjust = 0.5)) +
+  ggtitle("Rate of Marriage by Division")
+
+
+```
+
+```{r}
+# get all unique Division
+Divisions = unique(data2$Division)
+Divisions
+
+# summary for all division
+data3 <- data2 %>% 
+  group_by(Division) %>% 
+  summarize(Min. = min(Marriage_Rate),
+            "1st Qu." = round(quantile(Marriage_Rate, 0.25),2),
+            Median = round(median(Marriage_Rate),2),
+            Mean = round(mean(Marriage_Rate),2),
+            "3rd Qu." = round(quantile(Marriage_Rate, 0.75),2),
+            Max. = max(Marriage_Rate)
+            )
+# display data using datatable
+datatable(data3,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+```
+
+## 4. Analysis
+
+We will analyze, yealy Marriage rate over Division and Region. We will look the trend, how the trend is changing over 26 years.
+
+### 4.1 Yealy Average Marriage Rate over Division
+
+```{r, fig.width= 10, fig.height=10}
+# group by data by Division and Year
+data5 <- data.frame(data) %>% group_by(Division, Year) %>% summarise(mean(Marriage_Rate)) %>% filter(!is.na(Division))
+
+# rename Avg Marriage Rate column
+data5 <- data5 %>% rename( Avg_Marriage_Rate = `mean(Marriage_Rate)`)
+
+# round Avg_Marriage_Rate till 2 decimal places
+data5$Avg_Marriage_Rate <- round(data5$Avg_Marriage_Rate,2)
+
+# display data using datatable
+datatable(data5,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+
+ggplot(data5, aes(x = reorder(Year, desc(Year)), y = Avg_Marriage_Rate)) +
+  geom_bar(stat = "identity",fill = "steelblue") + facet_grid(~Division) + coord_flip() +
+  xlab("Year") + ylab("Average Marriage Rate")+ggtitle("Yealy Average Marriage Rate over Division") +
+  theme(plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white", color = NA)) +
+  geom_text(aes( y = Avg_Marriage_Rate,label=Avg_Marriage_Rate), hjust = -0.20, color="black", size=3.5)
+```
+
+### 4.2 Yealy Average Marriage Rate over Region
+
+```{r, fig.width= 10, fig.height=10}
+# group by data by Division and Year
+data6 <- data.frame(data) %>% group_by(Region, Year) %>% summarise(mean(Marriage_Rate)) %>% filter(!is.na(Region))
+
+# rename Avg Marriage Rate column
+data6 <- data6 %>% rename( Avg_Marriage_Rate = `mean(Marriage_Rate)`)
+
+# round Avg_Marriage_Rate till 2 decimal places
+data6$Avg_Marriage_Rate <- round(data6$Avg_Marriage_Rate,2)
+
+# display data using datatable
+datatable(data6,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+
+ggplot(data6, aes(x = reorder(Year, desc(Year)), y = Avg_Marriage_Rate)) +
+  geom_bar(stat = "identity",fill = "steelblue") + facet_grid(~Region) + coord_flip() +
+  xlab("Year") + ylab("Average Marriage Rate")+ggtitle("Yealy Average Marriage Rate over Region") +
+  theme(plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white", color = NA)) +
+  geom_text(aes( y = Avg_Marriage_Rate,label=Avg_Marriage_Rate), hjust = -0.20, color="black", size=3.5)
+
+```
+
+## 5. Conclusion
+
+The plot 4.1 and plot 4.2 shows the Average Marriage Rate is decrasing from year 1990 to 2016.
+
++  Yealy Average Marriage Rate over Division: The Average Marriage Rate in  `Mountain` division has decreased from 21.5 to 10.01 which is a decrease of 11.5%. The Average Marriage Rate in `Middle Atlantic` division has decreased from 7.7 to 6.29 which is a decrease of 1.4%. So, the Average Marriage Rate in  `Middle Atlantic` division decreased less as compared to  `Mountain` division.
+
++ Yealy Average Marriage Rate over Region: The Average Marriage Rate in  `West`region has decreased  from 17.3 to 9.41 which is a decrease of 7.9%. The Average Marriage Rate in `Midwest` region has decreased from 8.8 to 6.19 which is a decrease of 2.6%. So, the Average Marriage Rate in `Midwest` region decreased less as comparaed to  `West` region.
+
+

@@ -1,0 +1,209 @@
+---
+title: "DATA 607 Project 2 Part 1"
+author: "Subhalaxmi Rout"
+date: "03/08/2020"
+output:
+  html_document:
+    code_folding: show
+    fig_height: 4
+    fig_width: 8
+    highlight: espresso
+    theme: flatly
+    toc: yes
+    toc_float: yes
+  pdf_document: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# United Nations' Migration Data
+
+Discussion thread created by : Subhalaxmi Rout
+
+##  1.Introduction 
+
+People who have migrated across the countries all over the world and it was prepared and published by United Nation. Each of the origin countries, where the migrants are coming from is presented in each column and each of the destination countries, where the migrants are going to is represented in each row.The file contains a bunch of worksheets to include different years and data broken down by total / male / female. But I’m going to import ‘Table 16’ which contains the total migrants data for 2015 for this post.
+
+Link: [Dataset link](https://www.un.org/en/development/desa/population/migration/data/estimates2/estimates15.asp)
+
+
+## 2.Load library
+
+```{r}
+#install.packages("dplyr")
+#install.packages("tidyr")
+#install.packages("ggplot2")
+#install.packages("DT")
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(DT)
+```
+
+## 3.Data load and cleaning
+
+Data is stored in the **Github** and loaded data from Github to Rstudio using **read.csv()** method. 
+
+```{r}
+# read csv file data in a variable using  read.csv and skip first 15 rows
+data <- read.csv('https://raw.githubusercontent.com/SubhalaxmiRout002/Data-607-Project-2-Dataset-1/master/US_immigrants_data2.csv', skip = 16, header = TRUE, fileEncoding = "Latin1",check.names = F,stringsAsFactors = F)
+
+# convert data to data frame
+data <- data.frame(data)
+
+# display data using datatable
+datatable(data,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+```
+
+### 3.1 Remove region and keep only contries
+
+```{r}
+# remove blanks from Var5 
+data <- data %>% filter(data$Var.5 != "")
+
+# display data using datatable
+datatable(data,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+```
+
+### 3.2 Remove unnecessary columns
+
+```{r}
+# using "-" sign to delete the column
+data <- data %>% select(-Var.1, -Var.3, -Var.5, -Total, -starts_with("Other"))
+
+# display data using datatable
+datatable(data,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+```
+
+
+### 3.3 Rename column names
+
+```{r}
+# rename Var.2 and Var.4 i.e "destination_country" and "country_code" 
+data <- data %>% rename(destination_country = Var.2, country_code = Var.4)
+
+# display data using datatable
+datatable(data,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+```
+
+### 3.4 Gather 232 columns to make it tidy
+
+There are many pair of contries people did not migratate, so remove those contries.
+
+```{r}
+# convert country column to row and remove "NA"
+data <- data %>% gather(origin_country, migrants, Afghanistan:Zimbabwe, na.rm = TRUE)
+
+# display data using datatable
+datatable(data,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+```
+
+### 3.5 Pair of contries with greater than 1 million people
+
+```{r}
+# apply filter condition on migrants
+data1 <- data.frame(data) %>% filter(data$migrants > 1000000)
+
+# display data using datatable
+datatable(data1,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+```
+
+##  4. Analysis
+ This part shows relation between origin country and desitnation country. The **darkred**  color country has low imigrants and the **blue** color country has more number of immirants.
+ 
+Note: Due to filter immigrants count shows in million.
+ 
+
+### 4.1 Plot Destination country and Origin country mostly migrated using heat map
+
+```{r, fig.width= 15, fig.height=15}
+# stored data in data1
+data1 <- data.frame(data1)
+
+# plot heatmap using ggplot()
+ggplot(data = data1, mapping = aes(x = destination_country, y = origin_country)) +
+geom_tile(aes(fill = migrants)) + scale_fill_gradient(low = "darkred", high = "midnightblue") +
+theme(panel.grid.major.x=element_blank(), 
+        panel.grid.minor.x=element_blank(), 
+        panel.grid.major.y=element_blank(), 
+        panel.grid.minor.y=element_blank(),
+        panel.background=element_rect(fill="gray90"), 
+        axis.text.x = element_text(angle=90, hjust = 1,vjust=1,size = 12,face = "bold"),
+        plot.title = element_text(size=20,face="bold"),
+        axis.text.y = element_text(size = 12,face = "bold")) +
+ggtitle("Migration above 1M (million)") +
+theme(plot.title = element_text(hjust = 0.5))
+
+``` 
+
+### 4.2 People migrated to United States
+
+```{r}
+# filter with destination country
+data2 <- data.frame(data) %>% filter(data$destination_country == "United States of America")
+
+# order by desc with immigrants
+data2 <- data2 %>% arrange(desc(migrants))
+
+# display data using datatable
+datatable(data2,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+
+```
+
+
+### 4.3 Plot top 20 country people  migrated to United States
+
+```{r, fig.width= 8, fig.height=8}
+
+# stored top 20 top 20 country, people mostly migrated to United States, stored data in var (data2)
+data2 <- head(data2, 20)
+
+# plot bar graph using ggplot()
+ggplot(data = data2, mapping = aes(x = origin_country, y = migrants)) + 
+  geom_bar(aes(reorder(origin_country,migrants),migrants),stat = "identity",fill = "steelblue") +
+  coord_flip() +  xlab("Origin Country") + ylab("#imigrants") +
+  ggtitle("Top 20 Countries - people migranted to United States") +
+  theme(plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white", color = NA)) +
+  geom_text(aes( y = migrants,label=migrants), hjust = -0.20, color="black", size=3.5)
+```
+
+### 4.4 Americans migrated country
+
+```{r}
+# filter with origin country
+data3 <- data.frame(data) %>% filter(data$origin_country == "United.States.of.America")
+
+# order by desc with immigrants
+data3 <- data3 %>% arrange(desc(migrants))
+
+# display data using datatable
+datatable(data3,options = list(scrollX = TRUE, paging=TRUE,fixedHeader=TRUE))
+```
+
+### 4.5 Plot top 20 contries where Americans migrated
+
+```{r,fig.width= 8, fig.height=8}
+# top 20 contries where Americans mostly migrated, stored data in var (data3)
+data3 <- head(data3, 20)
+
+ggplot(data = data3, mapping = aes(x = destination_country, y = migrants)) + 
+  geom_bar(aes(reorder(destination_country,migrants),migrants),stat = "identity",fill = "steelblue") +
+  coord_flip() +  xlab("Destination Country") + ylab("#imigrants") +
+  ggtitle("Top 20 Countries - Americans migranted") +
+  theme(plot.title = element_text(hjust = 0.5),panel.background = element_rect(fill = "white", color = NA)) +
+  geom_text(aes( y = migrants,label=migrants), hjust = -0.20, color="black", size=3.5)
+```
+
+## 5. Conclusion
+
+The data set contains 232 columns, using differnt method of **tydr, dplyr** converted those colums to row. Applied filter condition to get below analysis.
+
++ People migrated from original country to migrated country
++ Top 20 original country - where people migrated to United states
++ Top 20 desination country- where americans migrated to destination contry
+
+
